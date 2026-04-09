@@ -13,6 +13,7 @@
         gnumake
         bear          # Generates compile_commands.json for clangd
         clang-tools   # Your LSP
+        cmake
       ];
 
       # mkShell automatically pulls in the C/C++ standard libraries (stdenv)
