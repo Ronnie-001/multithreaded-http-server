@@ -12,7 +12,7 @@ class Server {
 
 private:
     int _status;
-    
+
     // Member variables to hold the socket file descriptors.
     int _sock_fd;
     int _bind_fd;
@@ -43,9 +43,8 @@ public:
     /*
      * Gets a list of server addresses to connect on using getaddrinfo() and 
      * addrinfo _hints for specifying criteria to look for when scanning through.
-     * Returns the unique file descriptor _bind_fd.
      */
-    int findServerAddress() 
+    void findServerAddress() 
     {
         if (_status != 0) {
             fprintf(stderr, "[ERROR] getaddrinfo: %s\n", gai_strerror(_status));
@@ -72,10 +71,19 @@ public:
             // Exit loop once you have found a server address to connect on.
             break;
         }
-        
-        return _bind_fd;
 
+        freeaddrinfo(_servinfo);
+
+        // No connections found.
+        if (_ptr == NULL) {
+            // Flush the pending output and exit 
+            std::cerr << "[ERROR] Server: No avaliable connections, closing server.";
+            exit(EXIT_FAILURE);
+        }
     }
+
+     
+
 };
 
 
