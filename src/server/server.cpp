@@ -23,9 +23,12 @@ private:
     struct addrinfo* _servinfo;
     struct addrinfo* _ptr;
 
+    bool _server_running;
+    struct sockaddr _received_connection; 
+
 public:
     // Constructor
-    Server() 
+    Server() : _server_running(false)
     {
         // Look for IPv4 or IPv6.
         _hints.ai_family = PF_UNSPEC;
@@ -81,10 +84,27 @@ public:
             exit(EXIT_FAILURE);
         }
     }
+    
+    /*
+     * Function used for listening for incoming connections
+     */
+    void listenForConnections()
+    {
+        // Set the queue size through BACKLOG
+        _listen_fd = listen(_sock_fd, BACKLOG);
+        
+        if (_listen_fd == -1) {
+            std::cerr << "[ERROR] Error when listening for connection on socket with file descriptor: " << _sock_fd;
+            exit(EXIT_FAILURE);
+        }
+        
+        std::cout << "[LOGS] Server: listening for incoming connections..." << "\n";
 
-     
+        _server_running = true;
 
+        while (_server_running) {
+            socklen_t connection_size = sizeof(_received_connection);
+
+        }        
+    }
 };
-
-
-
