@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <netdb.h>
-#include <__stddef_null.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -16,13 +15,13 @@
 Server::Server() : _server_running(false) 
 {
     // Look for IPv4 or IPv6.
-    _hints->ai_family = PF_UNSPEC;
-    // Look server addresses that use TCP.
-    _hints->ai_socktype = SOCK_STREAM;
-    _hints->ai_flags = AI_PASSIVE;
+    _hints.ai_family = PF_UNSPEC;
+    // Look at server addresses that use TCP.
+    _hints.ai_socktype = SOCK_STREAM;
+    _hints.ai_flags = AI_PASSIVE;
    
     // Get the server addresses that match the hints.
-    _status = getaddrinfo(NULL, MY_PORT, _hints, &_servinfo);
+    _status = getaddrinfo(NULL, MY_PORT, &_hints, &_servinfo);
 }
 
 Server::~Server()

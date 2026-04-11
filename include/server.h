@@ -1,6 +1,8 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <netdb.h>
+
 class Server {
 
 private:
@@ -12,7 +14,7 @@ private:
     int _listen_fd;
     int _conn_fd;
 
-    struct addrinfo* _hints;
+    struct addrinfo _hints;
     struct addrinfo* _servinfo;
     struct addrinfo* _ptr;
 
