@@ -1,5 +1,5 @@
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef TCP_H
+#define TCP_H
 
 #include <netdb.h>
 
@@ -44,4 +44,4 @@ public:
     void* getAddressFamily(const sockaddr_storage* recieved_connection);
 }; 
 
-#endif // ! SERVER_H
+#endif // ! TCP_H
