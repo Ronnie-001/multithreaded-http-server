@@ -1,12 +1,12 @@
-#include <server.h>
+#include "tcp.h"
 
 int main()
 {
-    Server* server = new Server();
-    
+    TcpListener* listener = new TcpListener();   
+
     // Start the TCP listener.
-    server->findServerAddress();
-    server->listenForConnections();
+    listener->findServerAddress();
+    listener->listenForConnections();
 
     return 0;
 }

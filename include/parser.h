@@ -35,6 +35,8 @@ public:
     
     // Used for extracting the HTTP version being used.
     std::string extractVersion();
+
+     
 };
 
 #endif // ! PARSER_H

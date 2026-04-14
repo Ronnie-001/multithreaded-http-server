@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <iostream>
 
@@ -11,6 +12,8 @@
 
 #define MY_PORT "3490"
 #define BACKLOG 10
+#define BUFFER_SIZE 1024
+
 
 TcpListener::TcpListener() : _server_running(false) 
 {
@@ -92,16 +95,25 @@ void TcpListener::listenForConnections()
         }
 
         // Read in the incoming request data.
-        char data[INET6_ADDRSTRLEN];
-        socklen_t request_size = sizeof(data);
+        char ip_address[INET6_ADDRSTRLEN];
+        socklen_t request_size = sizeof(ip_address);
 
-        inet_ntop(_received_connection.ss_family, getAddressFamily(&_received_connection), data, request_size);
-        std::cout << "[SERVER] Data recieved: " << data << '\n';
+        inet_ntop(_received_connection.ss_family, getAddressFamily(&_received_connection), ip_address, request_size);
+        std::cout << "[SERVER] IP address: " << ip_address << '\n';
 
         // buffer to read the data into.
-        char buffer[1024];
+        char buffer[BUFFER_SIZE];
+        
+        int nread = recv(_conn_fd, buffer, BUFFER_SIZE, 0);
+        // Move on from the failed request.
+        if (nread == -1) {
+            continue;
+        } 
 
-
+        buffer[nread] = '\0';
+        
+        std::cout << "Message recieved: " << "\n";
+        std::cout << buffer;
     }        
 }
 
