@@ -2,8 +2,8 @@
 
 int main()
 {
-    TcpListener* listener = new TcpListener();
-    
+    TcpListener* listener = new TcpListener();   
+
     // Start the TCP listener.
     listener->findServerAddress();
     listener->listenForConnections();
