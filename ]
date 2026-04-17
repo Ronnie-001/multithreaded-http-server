@@ -10,10 +10,6 @@ HttpParser::~HttpParser() { /*Nothing here!!!*/ }
 
 bool HttpParser::isRequestComplete() const { return _complete; }
 
-std::string HttpParser::getMethod() const { return _method; }
-std::string HttpParser::getResourcePath() const { return _resource_path; }
-std::string HttpParser::getVersion() const { return _version; }
-
 void HttpParser::appendData(const char* buffer, int bytes)
 {
     _request.append(buffer, bytes);
@@ -28,7 +24,7 @@ void HttpParser:: extractStartLine()
     _start_line = start_line;
 }
 
-void HttpParser::parseStartLine()
+std::string HttpParser::extractMethod()
 {
     std::stringstream ss(_start_line);
     // Use a vector to store each part of the start line.
@@ -36,11 +32,5 @@ void HttpParser::parseStartLine()
     std::string store;
     
     while (std::getline(ss, store, ' ')) {
-        v.push_back(store);
     }
-        
-    // Set the member variables pertaining to the start line
-    _method = v[0];
-    _resource_path = v[1];
-    _version = v[2];
 }

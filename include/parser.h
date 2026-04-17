@@ -12,9 +12,15 @@ class HttpParser
 private:
     // Used to check if the entire HTTP request has been recieved.
     bool _complete;
+    // The fd of the socket that we are connected to.
     int _conn_fd;
     std::string _request;
+
+    // the start line
     std::string _start_line;
+    std::string _method;
+    std::string _resource_path;
+    std::string _version;
 
     // The final request to be constructed.
     Request _parsed_request;
@@ -25,8 +31,11 @@ public:
     // Destructor
     ~HttpParser();
     
-    // Returns the state of _request.
     bool isRequestComplete() const; 
+    std::string getMethod() const;
+    std::string getResourcePath() const;
+    std::string getVersion() const;
+
     /*
      * Used for appending data from the recv() system call
      * and appending it to _request.
@@ -36,16 +45,10 @@ public:
     /* Used for extracting the start line from the HTTP request, which
      * contains the method, resource path and HTTP version,
      */
-    std::string extractStartLine();
+    void extractStartLine();
     
-    // Used for extracting the method used, i.e. GET, POST, PUT, etc.
-    std::string extractMethod(); 
-    
-    // Used for extracting the path to the resource.
-    std::string extractResourcePath();
-    
-    // Used for extracting the HTTP version being used.
-    std::string extractVersion();
+    // Used for parsing the start line, reteriving the method, resource path and version.
+    void parseStartLine(); 
 };
 
 #endif // ! PARSER_H
