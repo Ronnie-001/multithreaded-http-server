@@ -32,6 +32,7 @@ public:
     ~HttpParser();
     
     bool isRequestComplete() const; 
+
     std::string getMethod() const;
     std::string getResourcePath() const;
     std::string getVersion() const;
@@ -49,6 +50,9 @@ public:
     
     // Used for parsing the start line, reteriving the method, resource path and version.
     void parseStartLine(); 
+    
+    // Used for getting the headers of the HTTP request
+    void parseHeaders();
 };
 
 #endif // ! PARSER_H

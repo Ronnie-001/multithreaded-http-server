@@ -24,6 +24,9 @@ private:
 public:
     // Constructor
     TcpListener();
+
+    // Copy constructor 
+    TcpListener(const TcpListener& listener) = delete;
     
     // Destructor
     ~TcpListener();
