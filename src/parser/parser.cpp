@@ -1,7 +1,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <iostream>
 
 #include "parser.h"
 
@@ -15,6 +14,7 @@ bool HttpParser::isRequestComplete() const { return _complete; }
 std::string HttpParser::getMethod() const { return _method; }
 std::string HttpParser::getResourcePath() const { return _resource_path; }
 std::string HttpParser::getVersion() const { return _version; }
+
 
 void HttpParser::appendData(const char* buffer, int bytes)
 {
@@ -62,23 +62,34 @@ void HttpParser::parseHeaders()
     while (parse_end != std::string::npos) {
         std::string header = headers.substr(parse_start, parse_end - parse_start);  
 
-        // Split the header based on ": ", then add to std::map _headers
+         // Split the header based on ": ", then add to std::map _headers
         std::stringstream ss(header);
         std::vector<std::string> v;
         std::string store;
-
+        
         while (std::getline(ss, store, ':')) {
             v.push_back(store);
         }
-        
-        // Remove leading space from the value
-        v[1] = v[1].find(' ') != std::string::npos ?  v[1].substr(1, v[1].size()) : v[1];
 
-        std::cout << "Key: " << v[0] << '\n';
-        std::cout << "Value: " << v[1] << '\n';
+        // If v has no elements, then move on
+        if (v.size() == 0) {
+            parse_start = parse_end + 2;
+            parse_end = headers.find("\r\n", parse_start);
+            continue; 
+        }
 
-        std::cout << '\n';
+        std::string value;
+        for (int i = 1; i < v.size(); i++) {
+            value.append(v[i]);
+        }
         
-        _headers.insert({v[0], v[1]});
+        // Remove the leading whitespace if found.
+        value = value.find(' ') != std::string::npos ? value.substr(1) : value;
+
+         // Add to map
+         _headers.insert({v[0], value});
+
+        parse_start = parse_end + 2;
+        parse_end = headers.find("\r\n", parse_start);
     }
-}
+} 

@@ -120,6 +120,8 @@ void TcpListener::listenForConnections()
             parser->parseStartLine();
 
             parser->parseHeaders();
+
+            std::cout << "----------------NEXT PIECE OF DATA---------------------" << '\n';
         }
 
         // Move on from the failed request.

@@ -26,6 +26,8 @@ private:
     // Headers 
     std::map<std::string, std::string> _headers;
 
+    bool _has_message_body;
+
     // The final request to be constructed.
     Request _parsed_request;
 public:
@@ -57,6 +59,9 @@ public:
     
     // Used for getting the headers of the HTTP request
     void parseHeaders();
+    
+    // Function used to create the pasersed HTTP request.
+    Request constructRequest();
 };
 
 #endif // ! PARSER_H
