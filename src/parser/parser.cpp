@@ -15,7 +15,6 @@ std::string HttpParser::getMethod() const { return _method; }
 std::string HttpParser::getResourcePath() const { return _resource_path; }
 std::string HttpParser::getVersion() const { return _version; }
 
-
 void HttpParser::appendData(const char* buffer, int bytes)
 {
     _request.append(buffer, bytes);
@@ -47,20 +46,23 @@ void HttpParser::parseStartLine()
     _version = v[2];
 }
 
-void HttpParser::parseHeaders() 
+void HttpParser::extractHeaders()
 {
     std::string::size_type start = _request.find("\r\n");
     std::string::size_type end = _request.find("\r\n\r\n");
 
     // Take everything between the start line and the space.
-    std::string headers = _request.substr(start, end);
-    
+    _extracted_headers = _request.substr(start, end);
+}
+
+void HttpParser::parseHeaders() 
+{
     std::size_t parse_start = 0;
-    std::size_t parse_end = headers.find("\r\n");
+    std::size_t parse_end = _extracted_headers.find("\r\n");
     
     // Iterate through manually until no CLRF
     while (parse_end != std::string::npos) {
-        std::string header = headers.substr(parse_start, parse_end - parse_start);  
+        std::string header = _extracted_headers.substr(parse_start, parse_end - parse_start);  
 
          // Split the header based on ": ", then add to std::map _headers
         std::stringstream ss(header);
@@ -74,7 +76,7 @@ void HttpParser::parseHeaders()
         // If v has no elements, then move on
         if (v.size() == 0) {
             parse_start = parse_end + 2;
-            parse_end = headers.find("\r\n", parse_start);
+            parse_end = _extracted_headers.find("\r\n", parse_start);
             continue; 
         }
 
@@ -90,6 +92,16 @@ void HttpParser::parseHeaders()
          _headers.insert({v[0], value});
 
         parse_start = parse_end + 2;
-        parse_end = headers.find("\r\n", parse_start);
+        parse_end = _extracted_headers.find("\r\n", parse_start);
+    }
+
+    // Check if the message body is present
+    if (_headers.contains("Content-Length")) {
+        extractMessageBody();
     }
 } 
+
+void HttpParser::extractMessageBody() 
+{
+    auto number_of_bytes = _headers.at("Content-Length");
+}

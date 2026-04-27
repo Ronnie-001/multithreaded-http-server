@@ -1,7 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include "request.h"
 
@@ -22,11 +22,10 @@ private:
     std::string _method;
     std::string _resource_path;
     std::string _version;
-
+    
+    std::string _extracted_headers;
     // Headers 
-    std::map<std::string, std::string> _headers;
-
-    bool _has_message_body;
+    std::unordered_map<std::string, std::string> _headers;
 
     // The final request to be constructed.
     Request _parsed_request;
@@ -53,13 +52,17 @@ public:
      * contains the method, resource path and HTTP version,
      */
     void extractStartLine();
-    
     // Used for parsing the start line, reteriving the method, resource path and version.
     void parseStartLine(); 
-    
+   
+    // Used for extracting the headers with the CLRF.
+    void extractHeaders();
     // Used for getting the headers of the HTTP request
     void parseHeaders();
     
+    // Used for getting the message body from the HTTP request.
+    void extractMessageBody();
+
     // Function used to create the pasersed HTTP request.
     Request constructRequest();
 };
