@@ -18,16 +18,17 @@ private:
     int _conn_fd;
     std::string _request;
 
-    // the start line
     std::string _extracted_start_line;
     std::string _method;
     std::string _resource_path;
     std::string _version;
-    
+   
+    // Headers
     std::string _extracted_headers;
-    std::string _extracted_message_body;
-    // Headers 
     std::unordered_map<std::string_view, std::string_view> _headers;
+
+    // Message body
+    std::string _extracted_message_body;
     std::unordered_map<std::string_view, std::string_view> _message_body;
 
     // The final request to be constructed.

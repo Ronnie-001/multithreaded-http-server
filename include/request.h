@@ -2,8 +2,8 @@
 #define REQUEST_H
 
 #include <string>
-#include <map>
-#include <optional>
+#include <string_view>
+#include <unordered_map>
 
 struct Request 
 {
@@ -13,10 +13,10 @@ struct Request
     std::string version; 
 
     // request headers
-    std::map<std::string, std::string> headers;
+    std::unordered_map<std::string_view, std::string_view> headers;
 
     // message body
-    std::optional<std::string> body;
+    std::unordered_map<std::string_view, std::string_view> body;
 };
 
 #endif // ! REQUEST_H

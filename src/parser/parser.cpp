@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "parser.h"
+#include "request.h"
 #include "simdjson.h"
 
 HttpParser::HttpParser(int fd, const std::string request) : _complete(false), _conn_fd(fd), _request(request)
@@ -53,8 +54,13 @@ void HttpParser::extractHeaders()
     std::string::size_type start = _request.find("\r\n");
     std::string::size_type end = _request.find("\r\n\r\n");
 
-    // Take everything between the start line and the space.
-    _extracted_headers = _request.substr(start, end);
+    // Take everything between the start line and \r\n\r\n. 
+    _extracted_headers = _request.substr(start + 2, end - start);
+
+    std::cout << "------------------------------------" << '\n';
+    std::cout << "EXTRACTED HEADERS: " << '\n';
+    std::cout << _extracted_headers << '\n';
+    std::cout << "------------------------------------" << '\n';
 }
 
 void HttpParser::parseHeaders() 
@@ -72,10 +78,12 @@ void HttpParser::parseHeaders()
         std::string store;
         
         while (std::getline(ss, store, ':')) {
+            std::cout << "----------------------------" << '\n';
+            std::cout << "HEADER: " << store << '\n';
             v.push_back(store);
         }
-
-        // If v has no elements, then move on
+        std::cout << "----------------------------" << '\n';
+        
         if (v.size() == 0) {
             parse_start = parse_end + 2;
             parse_end = _extracted_headers.find("\r\n", parse_start);
@@ -90,16 +98,20 @@ void HttpParser::parseHeaders()
         // Remove the leading whitespace if found.
         value = value.find(' ') != std::string::npos ? value.substr(1) : value;
 
-         // Add to map
-         _headers.insert({v[0], value});
+        // Add to map
+        _headers.insert({v[0], value});
 
+//        std::cout << "-------------HEADER-------------" << '\n';
+//        std::cout << "Header: " << v[0] << '\n';
+//        std::cout << "Value: " << value << '\n';
+        
         parse_start = parse_end + 2;
         parse_end = _extracted_headers.find("\r\n", parse_start);
     }
 
-    // Check if the message body is present
     if (_headers.contains("Content-Length")) {
         extractMessageBody();
+        parseMessageBody();
     }
 } 
 
@@ -109,9 +121,6 @@ void HttpParser::extractMessageBody()
     std::string::size_type end = _request.size() - start;
     
     _extracted_message_body = _request.substr(start, end);
-
-    std::cout << "EXTRACTED MESSAGE BODY: " << '\n';
-    std::cout << "[" << _extracted_message_body << "]" << '\n';
 }
 
 void HttpParser::parseMessageBody() 
@@ -121,8 +130,6 @@ void HttpParser::parseMessageBody()
     simdjson::ondemand::object object = message_body.get_object();
     
     for (auto field : object) {
-        std::cout << "-------------------------" << '\n';
-
         // Get the key and the value
         std::string_view key = std::string_view(field->unescaped_key());
         std::string_view value = std::string_view(field->value().raw_json());
@@ -130,10 +137,23 @@ void HttpParser::parseMessageBody()
         // Remove quotes if present
         value = value.find("\"") != std::string_view::npos ? value.substr(1, value.size() - 2) : value;
 
-        std::cout << "Key: " << key << '\n';
-        std::cout << "Value: " << value << '\n';
-
         // Add to the map
         _message_body.insert({key, value});
     } 
 }
+
+Request HttpParser::constructRequest() 
+{
+    Request req;
+
+    // add member variables 
+    req.method = _method;
+    req.resourcePath = _resource_path;
+    req.version = _version;
+
+    req.headers = _headers;
+    req.body = _message_body;
+
+    return req;
+}
+

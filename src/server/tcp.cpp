@@ -114,17 +114,16 @@ void TcpListener::listenForConnections()
             data.append(buffer, nread);             
 
             std::cout << "data recieved: " << '\n';
+            std::cout << "-------------DATA---------------" << '\n';
             std::cout << data << '\n';
             std::cout << "--------------------------------" << '\n';
 
             auto parser = std::make_unique<HttpParser>(_conn_fd, data);
             parser->extractStartLine();
             parser->parseStartLine();
-
-            parser->parseHeaders();
             
-            parser->extractMessageBody();
-            parser->parseMessageBody();
+            parser->extractHeaders();
+            parser->parseHeaders();
         }
 
         // Move on from the failed request.
