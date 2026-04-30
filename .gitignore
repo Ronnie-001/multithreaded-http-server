@@ -1,4 +1,6 @@
 dooing.json
 .envrc
 .direnv/
+.cache/
 build/
+

@@ -8,10 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Enable compile commands to work with clangd LSP
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Include the subdirectories
 add_subdirectory(src/server)
+add_subdirectory(src/parser)
 
 add_executable(Server main.cpp)
 
 target_link_libraries(Server 
-    PRIVATE cerberus_server
+    PRIVATE cerberus_server 
+            cerberus_parser
 )

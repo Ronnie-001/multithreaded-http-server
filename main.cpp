@@ -1,9 +1,10 @@
 #include "tcp.h"
+#include <memory>
 
 int main()
 {
-    TcpListener* listener = new TcpListener();
-    
+    auto listener = std::make_unique<TcpListener>();    
+
     // Start the TCP listener.
     listener->findServerAddress();
     listener->listenForConnections();
