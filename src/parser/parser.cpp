@@ -82,7 +82,7 @@ void HttpParser::parseHeaders()
             parse_end = _extracted_headers.find("\r\n", parse_start);
             continue; 
         }
-
+            
         std::string value;
         for (int i = 1; i < v.size(); i++) {
             value.append(v[i]);
@@ -149,18 +149,18 @@ std::ostream& operator<<(std::ostream& out, const Request& request)
         out << "VALUE: " << value << '\n';
     };
 
-    out << "----------HTTP HEADERS---------" << '\n';
+    out << "---------HTTP HEADERS-------" << '\n';
     for (const auto& [header, value] : request.headers) {
         print_key_values(header, value, out); 
-        out << "---------------------------" << '\n';
+        out << "-------------------------" << '\n';
     } 
     
     // Check if there is a message body present
     if (request.body.has_value()) {
-        out << "--------------MESSAGE BODY------------" << '\n';
+        out << "--------MESSAGE BODY------" << '\n';
         for (const auto& [key, value] : *request.body) {
             print_key_values(key, value, out);
-            out << "---------------------------" << '\n';
+            out << "------------------------" << '\n';
         }
     }
 

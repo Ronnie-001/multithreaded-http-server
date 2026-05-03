@@ -25,5 +25,4 @@ struct Request
      */
     std::ostream& operator<<(std::ostream& out, const Request& request); 
 
-
 #endif // ! REQUEST_H
