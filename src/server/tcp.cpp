@@ -108,7 +108,8 @@ void cerberus::TcpListener::listenForConnections()
             perror("[ERROR] Erorr when waiting for available file descriptors.");
             exit(EXIT_FAILURE);
         }
-
+        
+        // Loop through all of the READY file descriptors.
         for (int i = 0; i < nfds; ++i) {
             int fd = _events[i].data.fd;
             
@@ -125,13 +126,14 @@ void cerberus::TcpListener::listenForConnections()
             
             // New socket, use a new HTTP parser object.
             if (fd == _sock_fd) {
-                parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
-                // add the parser to the list that we have.
-                _parsers.insert({fd, parser.get()});
+                auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
+                parser->appendData(data);
+                // Transfer ownership to map.
+                _parsers[fd] = std::move(parser);
 
             } else { // This is an existing socket, grab the associated parser and append.
-                parser = nullptr;
-                parser = *_parsers.at(fd);
+                cerberus::HttpParser* parser = _parsers[fd].get();
+                parser->appendData(data); 
             }
         }
     } 
@@ -182,15 +184,8 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
         
         // Create a parser for each incoming request
         auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
-
-        parser->extractStartLine();
-        parser->parseStartLine();
-        
-        parser->extractHeaders();
-        parser->parseHeaders();
         
         cerberus::Request req = parser->constructRequest();
-
         std::cout << req;
 
         if (nread == -1) {
@@ -199,4 +194,13 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
     }
 
     return data;
+}
+
+void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser) 
+{
+    parser->extractStartLine();
+    parser->parseStartLine();
+    
+    parser->extractHeaders();
+    parser->parseHeaders();
 }

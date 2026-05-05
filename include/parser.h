@@ -56,6 +56,7 @@ namespace cerberus
          * and appending it to _request.
         */
         void appendData(const char* buffer, int bytes);
+        void appendData(const std::string data);
         
         /* Used for extracting the start line from the HTTP request, which
          * contains the method, resource path and HTTP version,

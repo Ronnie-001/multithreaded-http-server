@@ -24,6 +24,11 @@ void cerberus::HttpParser::appendData(const char* buffer, int bytes)
     _request.append(buffer, bytes);
 }
 
+void cerberus::HttpParser::appendData(const std::string data)
+{
+    _request.append(data);
+}
+
 void cerberus::HttpParser:: extractStartLine()
 {
     // Look for first instance of CRLF
