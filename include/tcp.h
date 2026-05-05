@@ -2,7 +2,6 @@
 #define TCP_H
 
 #include "parser.h"
-#include "request.h"
 #include <netdb.h>
 #include <sys/epoll.h>
 #include <unordered_map>
@@ -39,7 +38,7 @@ namespace cerberus
          * This way, when handling things such as packet switching, we can append
          * incoming data with thier correct parser.
          */
-        std::unordered_map<int, cerberus::HttpParser*> parsers;
+        std::unordered_map<int, cerberus::HttpParser*> _parsers;
 
     public:
         // Constructor
@@ -69,6 +68,8 @@ namespace cerberus
         // Used to create a new epoll instace in kernel space.
         void createEpollInstance();
         
+        // Function used to read in data from the recv system call.
+        std::string readData(const int _conn_fd);
     }; 
 }
 

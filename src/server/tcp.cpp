@@ -97,6 +97,9 @@ void cerberus::TcpListener::listenForConnections()
         std::cout << _sock_fd;
         exit(EXIT_FAILURE);
     } 
+    
+    // Create the parser here 
+    auto parser = std::make_unique<cerberus::HttpParser>();
 
     while (_server_running) {
         // Grab the number of READY file descriptors
@@ -108,66 +111,31 @@ void cerberus::TcpListener::listenForConnections()
 
         for (int i = 0; i < nfds; ++i) {
             int fd = _events[i].data.fd;
+            
+            // Connect on the socket.
+            socklen_t connection_size = sizeof(_received_connection);
+            _conn_fd = accept(fd, (sockaddr*)&_received_connection, &connection_size);
 
-            // Check if this is an NEW connection
+            if (_conn_fd == -1) {
+                std::cout << "[LOGS] accept: failure extracting connection request. File descriptor: " << _conn_fd;
+                continue;
+            }
+
+            std::string data = readData(_conn_fd);
+            
+            // New socket, use a new HTTP parser object.
             if (fd == _sock_fd) {
-                // If so accept the connection, and create a new parser for it
+                parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
+                // add the parser to the list that we have.
+                _parsers.insert({fd, parser.get()});
 
-            } else {
-
+            } else { // This is an existing socket, grab the associated parser and append.
+                parser = nullptr;
+                parser = *_parsers.at(fd);
             }
         }
+    } 
 
-        socklen_t connection_size = sizeof(_received_connection);
-        _conn_fd = accept(_sock_fd, (sockaddr*)&_received_connection, &connection_size);
-        
-        if (_conn_fd == -1) {
-            std::cout << "[LOGS] accept: failure extracting connection request. File descriptor: " << _conn_fd;
-            continue;
-        }
-        
-        // Read in the incoming request data.
-        char ip_address[INET6_ADDRSTRLEN];
-        socklen_t request_size = sizeof(ip_address);
-
-        inet_ntop(_received_connection.ss_family, getAddressFamily(&_received_connection), ip_address, request_size);
-        std::cout << "[SERVER] IP address: " << ip_address << '\n';
-
-        // buffer to read the data into.
-        char buffer[BUFFER_SIZE];
-        std::string data;
-        
-        // TODO: Spin up a worker thread from the thread pool here. 
-
-        int nread;
-        while ((nread = recv(_conn_fd, buffer, BUFFER_SIZE, 0)) > 0) {
-            data.append(buffer, nread);             
-
-            std::cout << "data recieved: " << '\n';
-            std::cout << "-------------DATA---------------" << '\n';
-            std::cout << data << '\n';
-            std::cout << "--------------------------------" << '\n';
-            
-            // Create a parser for each incoming request
-            auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
-
-            parser->extractStartLine();
-            parser->parseStartLine();
-            
-            parser->extractHeaders();
-            parser->parseHeaders();
-            
-            cerberus::Request req = parser->constructRequest();
-
-            std::cout << req;
-        }
-
-        // Move on from the failed request.
-        if (nread == -1) {
-            continue;
-        } 
-    }        
-    
     _server_running = false;
 }
 
@@ -188,4 +156,47 @@ void cerberus::TcpListener::createEpollInstance()
         perror("[ERROR] Error creating an epoll instance."); 
         exit(EXIT_FAILURE);
     }
+}
+
+std::string cerberus::TcpListener::readData(const int _conn_fd)
+{
+    // Read in the incoming request data.
+    char ip_address[INET6_ADDRSTRLEN];
+    socklen_t request_size = sizeof(ip_address);
+
+    inet_ntop(_received_connection.ss_family, getAddressFamily(&_received_connection), ip_address, request_size);
+    std::cout << "[SERVER] IP address: " << ip_address << '\n';
+
+    // buffer to read the data into.
+    char buffer[BUFFER_SIZE];
+    std::string data;
+
+    int nread;
+    while ((nread = recv(_conn_fd, buffer, BUFFER_SIZE, 0)) > 0) {
+        data.append(buffer, nread);             
+
+        std::cout << "data recieved: " << '\n';
+        std::cout << "-------------DATA---------------" << '\n';
+        std::cout << data << '\n';
+        std::cout << "--------------------------------" << '\n';
+        
+        // Create a parser for each incoming request
+        auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
+
+        parser->extractStartLine();
+        parser->parseStartLine();
+        
+        parser->extractHeaders();
+        parser->parseHeaders();
+        
+        cerberus::Request req = parser->constructRequest();
+
+        std::cout << req;
+
+        if (nread == -1) {
+            continue;
+        }
+    }
+
+    return data;
 }

@@ -36,8 +36,11 @@ namespace cerberus
         Request _parsed_request;
 
     public:
-        // Constructor 
+        // Constructor(s)
+        HttpParser();
         HttpParser(int fd, const std::string request);
+
+        HttpParser(const HttpParser& parser);
 
         // Destructor
         ~HttpParser();
