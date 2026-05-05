@@ -70,6 +70,9 @@ namespace cerberus
             // Used to create a new epoll instace in kernel space.
             void createEpollInstance();
             
+            // Used to set a file descriptor to be non blocking.
+            int setNonBlocking(const int fd);
+            
             // Function used to read in data from the recv system call.
             std::string readData(const int _conn_fd);
             

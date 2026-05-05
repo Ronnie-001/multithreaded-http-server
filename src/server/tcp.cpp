@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/epoll.h>
+#include <fcntl.h>
 
 #include "tcp.h"
 #include "parser.h"
@@ -87,53 +88,61 @@ void cerberus::TcpListener::listenForConnections()
     _server_running = true;
     createEpollInstance();
 
+    setNonBlocking(_sock_fd);
+
     // Register interest in the _sock_fd file descriptor
     _ev.events = EPOLLIN;
     _ev.data.fd = _sock_fd;
 
     int register_interest = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, _sock_fd, &_ev); 
     if (register_interest == -1) {
-        perror("[ERROR] Error registering interest with file descriptor: ");
-        std::cout << _sock_fd;
+        std::cerr << "[ERROR] Error registering interest with file descriptor: " << _sock_fd;
         exit(EXIT_FAILURE);
     } 
-    
-    // Create the parser here 
-    auto parser = std::make_unique<cerberus::HttpParser>();
 
     while (_server_running) {
         // Grab the number of READY file descriptors
-        int nfds = epoll_wait(_epoll_fd, &_ev, MAX_EVENTS, -1);
+        int nfds = epoll_wait(_epoll_fd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
-            perror("[ERROR] Erorr when waiting for available file descriptors.");
+            std::cerr << "[ERROR] Erorr when waiting for available file descriptors.";
             exit(EXIT_FAILURE);
         }
         
         // Loop through all of the READY file descriptors.
         for (int i = 0; i < nfds; ++i) {
             int fd = _events[i].data.fd;
-            
-            // Connect on the socket.
-            socklen_t connection_size = sizeof(_received_connection);
-            _conn_fd = accept(fd, (sockaddr*)&_received_connection, &connection_size);
-
-            if (_conn_fd == -1) {
-                std::cout << "[LOGS] accept: failure extracting connection request. File descriptor: " << _conn_fd;
-                continue;
-            }
 
             std::string data = readData(_conn_fd);
             
             // New socket, use a new HTTP parser object.
             if (fd == _sock_fd) {
+                // Accept on the new socket
+                socklen_t connection_size = sizeof(_received_connection);
+                _conn_fd = accept(fd, (sockaddr*)&_received_connection, &connection_size);
+
+                if (_conn_fd == -1) {
+                    std::cout << "[LOGS] accept: failure extracting connection request. File descriptor: " << _conn_fd;
+                    continue;
+                }
+                
+                // TODO: Add the new file descriptor to epoll
+
                 auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
                 parser->appendData(data);
+
+                cerberus::Request req = parser->constructRequest();
+                // TODO: Pass request to queue to be processed by different threads.
+
                 // Transfer ownership to map.
                 _parsers[fd] = std::move(parser);
 
-            } else { // This is an existing socket, grab the associated parser and append.
-                cerberus::HttpParser* parser = _parsers[fd].get();
-                parser->appendData(data); 
+
+            }  else { // This is an existing socket, grab the associated parser and append.
+                 cerberus::HttpParser* parser = _parsers[fd].get();
+                 parser->appendData(data); 
+
+                 // TODO: Pass request to queue to be processed by different threads.
+                 cerberus::Request req = parser->constructRequest();
             }
         }
     } 
@@ -155,9 +164,24 @@ void cerberus::TcpListener::createEpollInstance()
 {
     _epoll_fd = epoll_create1(0);
     if (_epoll_fd == -1) {
-        perror("[ERROR] Error creating an epoll instance."); 
+        std::cerr << "[ERROR] Error creating an epoll instance."; 
         exit(EXIT_FAILURE);
     }
+}
+
+int cerberus::TcpListener::setNonBlocking(const int fd) 
+{
+    int flags = fcntl(fd, F_GETFL, 0); 
+    if (flags == -1) {
+        std::cerr << "[ERROR] Error getting the file access mode and status flags.";
+    }
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::cerr << "[ERROR] Error setting the socket file descriptor to be non-blocking";
+        return -1;
+    }
+
+    return 0;
 }
 
 std::string cerberus::TcpListener::readData(const int _conn_fd)
@@ -181,12 +205,6 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
         std::cout << "-------------DATA---------------" << '\n';
         std::cout << data << '\n';
         std::cout << "--------------------------------" << '\n';
-        
-        // Create a parser for each incoming request
-        auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
-        
-        cerberus::Request req = parser->constructRequest();
-        std::cout << req;
 
         if (nread == -1) {
             continue;
@@ -204,3 +222,4 @@ void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser)
     parser->extractHeaders();
     parser->parseHeaders();
 }
+
