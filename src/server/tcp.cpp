@@ -170,7 +170,7 @@ void cerberus::TcpListener::listenForConnections()
                     cerberus::Request req = parser->constructRequest();
                     std::cout << req;
                     
-                     // TODO: Pass request to queue to be processed by different threads.
+                    // TODO: Pass request to queue to be processed by different threads.
                 }
            }
         }
