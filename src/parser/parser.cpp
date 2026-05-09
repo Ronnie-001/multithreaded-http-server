@@ -13,7 +13,20 @@ cerberus::HttpParser::HttpParser(int fd, const std::string request) : _complete(
 
 cerberus::HttpParser::~HttpParser() { /*Nothing here!!!*/ } 
 
-bool cerberus::HttpParser::isRequestComplete() const { return _complete; }
+bool cerberus::HttpParser::isRequestComplete() 
+{
+    // Check if the recieved HTTP request has a message body
+    int header = _extracted_headers.find("Content-Length");    
+    int clrf =  _extracted_headers.find("\r\n\r\n");
+        
+    // No message body 
+    if (header == std::string::npos && clrf != std::string::npos) {
+        std::cout << "[LOGS] request structure complete!";
+        _complete = true;
+    } 
+
+    return _complete;
+}
 
 std::string cerberus::HttpParser::getMethod() const { return _method; }
 std::string cerberus::HttpParser::getResourcePath() const { return _resource_path; }

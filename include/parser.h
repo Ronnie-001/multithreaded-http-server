@@ -45,8 +45,7 @@ namespace cerberus
         // Destructor
         ~HttpParser();
         
-        bool isRequestComplete() const; 
-
+        bool isRequestComplete(); 
         std::string getMethod() const;
         std::string getResourcePath() const;
         std::string getVersion() const;

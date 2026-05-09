@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <immintrin.h>
@@ -31,11 +32,6 @@ cerberus::TcpListener::TcpListener() : _server_running(false)
     _status = getaddrinfo(NULL, MY_PORT, &_hints, &_servinfo);
 }
 
-cerberus::TcpListener::~TcpListener()
-{
-    close(_conn_fd);
-}
-
 void cerberus::TcpListener::findServerAddress()
 {
     if (_status != 0) {
@@ -45,15 +41,14 @@ void cerberus::TcpListener::findServerAddress()
     
     // Try each found server address until successful bind().
     for (_ptr = _servinfo; _ptr != NULL; _ptr = _ptr->ai_next) {
-        _sock_fd = socket(_ptr->ai_family, _ptr->ai_socktype, _ptr->ai_protocol);
 
+        _sock_fd = socket(_ptr->ai_family, _ptr->ai_socktype, _ptr->ai_protocol);
         if (_sock_fd == -1) {
             std::cerr << "[LOGS] socket: failed to create endpoint using socket() on server address: " << _ptr->ai_addr << "Trying next..."<< "\n"; 
             continue;     
         }
 
         _bind_fd = bind(_sock_fd, _ptr->ai_addr, _ptr->ai_addrlen);
-
         if (_bind_fd == -1) {
            std::cerr << "[LOGS] bind: failed to bind on server address: " << _ptr->ai_addr << "Trying next..."<< "\n"; 
            continue;     
@@ -87,11 +82,16 @@ void cerberus::TcpListener::listenForConnections()
 
     _server_running = true;
     createEpollInstance();
-
-    setNonBlocking(_sock_fd);
+    
+    // Set the socket to be non-blocking
+    int set_fd = setNonBlocking(_sock_fd);
+    if (set_fd == -1) {
+        std::cerr << "[ERROR] Error when trying to set the socket non non-blocking";
+        exit(EXIT_FAILURE);
+    }
 
     // Register interest in the _sock_fd file descriptor
-    _ev.events = EPOLLIN;
+    _ev.events = EPOLLIN | EPOLLET;
     _ev.data.fd = _sock_fd;
 
     int register_interest = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, _sock_fd, &_ev); 
@@ -111,39 +111,61 @@ void cerberus::TcpListener::listenForConnections()
         // Loop through all of the READY file descriptors.
         for (int i = 0; i < nfds; ++i) {
             int fd = _events[i].data.fd;
-
-            std::string data = readData(_conn_fd);
-            
             // New socket, use a new HTTP parser object.
-            if (fd == _sock_fd) {
-                // Accept on the new socket
-                socklen_t connection_size = sizeof(_received_connection);
-                _conn_fd = accept(fd, (sockaddr*)&_received_connection, &connection_size);
+           if (fd == _sock_fd) {
+                // TODO: loop through and accept all connections on this file descriptor.
+                while (true) {
+                    socklen_t connection_size = sizeof(_received_connection);
 
-                if (_conn_fd == -1) {
-                    std::cout << "[LOGS] accept: failure extracting connection request. File descriptor: " << _conn_fd;
-                    continue;
+                    int _conn_fd = accept(fd, (sockaddr*)&_received_connection, &connection_size);
+                    if (_conn_fd == -1) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                            break;
+                        }
+                        std::cout << "[LOGS] accept: failure extracting connection request. File descriptor: " << _conn_fd;
+                        continue;
+                    }
+                    
+                    int set_fd = setNonBlocking(_conn_fd);
+                    if (set_fd == -1) {
+                        std::cerr << "[ERROR] Error when trying to set the connection fd to non non-blocking";
+                        exit(EXIT_FAILURE);
+                    }
+
+                    std::string data = readData(_conn_fd);
+
+                    // Edge triggered.
+                    _ev.events = EPOLLIN | EPOLLET;
+                    _ev.data.fd = _conn_fd;
+                    
+                    int register_interest = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, _conn_fd, &_ev);
+                    if (register_interest == -1) {
+                        std::cerr << "[ERROR] Error registering interest with file descriptor: " << _sock_fd;
+                        exit(EXIT_FAILURE);
+                    } 
+
+                    auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
+                    parser->appendData(data);
+
+                    if (parser->isRequestComplete()) {
+                         cerberus::Request req = parser->constructRequest();
+                        
+                        // TODO: Pass request to queue to be processed by different threads.
+                    }
+
+                    // Transfer ownership to map.
+                    _parsers[fd] = std::move(parser);
+                    
                 }
-                
-                // TODO: Add the new file descriptor to epoll
+           } else { // This is an existing socket, grab the associated parser through the file descriptor and append.
+                cerberus::HttpParser* parser = _parsers[fd].get();
 
-                auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
-                parser->appendData(data);
+                std::string data = readData(fd);
+                parser->appendData(data); 
 
+                // TODO: Pass request to queue to be processetd by different threads.
                 cerberus::Request req = parser->constructRequest();
-                // TODO: Pass request to queue to be processed by different threads.
-
-                // Transfer ownership to map.
-                _parsers[fd] = std::move(parser);
-
-
-            }  else { // This is an existing socket, grab the associated parser and append.
-                 cerberus::HttpParser* parser = _parsers[fd].get();
-                 parser->appendData(data); 
-
-                 // TODO: Pass request to queue to be processed by different threads.
-                 cerberus::Request req = parser->constructRequest();
-            }
+           }
         }
     } 
 
@@ -174,6 +196,7 @@ int cerberus::TcpListener::setNonBlocking(const int fd)
     int flags = fcntl(fd, F_GETFL, 0); 
     if (flags == -1) {
         std::cerr << "[ERROR] Error getting the file access mode and status flags.";
+        return -1;
     }
 
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
@@ -198,17 +221,25 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
     std::string data;
 
     int nread;
-    while ((nread = recv(_conn_fd, buffer, BUFFER_SIZE, 0)) > 0) {
+    while ((nread = recv(_conn_fd, buffer, BUFFER_SIZE, 0))) {
+        if (nread == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+            break;
+        }
+
+        // Check if the client disconnects.
+        if (nread == 0) {
+            break;
+        }
+
         data.append(buffer, nread);             
 
         std::cout << "data recieved: " << '\n';
         std::cout << "-------------DATA---------------" << '\n';
         std::cout << data << '\n';
         std::cout << "--------------------------------" << '\n';
-
-        if (nread == -1) {
-            continue;
-        }
     }
 
     return data;

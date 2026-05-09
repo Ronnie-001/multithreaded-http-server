@@ -21,7 +21,6 @@ namespace cerberus
             int _sock_fd;
             int _bind_fd;
             int _listen_fd;
-            int _conn_fd;
 
             struct addrinfo _hints;
             struct addrinfo* _servinfo;
