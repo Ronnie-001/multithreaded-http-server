@@ -16,12 +16,11 @@ cerberus::HttpParser::~HttpParser() { /*Nothing here!!!*/ }
 bool cerberus::HttpParser::isRequestComplete() 
 {
     // Check if the recieved HTTP request has a message body
-    int header = _extracted_headers.find("Content-Length");    
-    int clrf =  _extracted_headers.find("\r\n\r\n");
+    int header = _request.find("Content-Length");    
+    int clrf = _request.find("\r\n\r\n");
         
-    // No message body 
+    // No message body, mainly for GET requests
     if (header == std::string::npos && clrf != std::string::npos) {
-        std::cout << "[LOGS] request structure complete!";
         _complete = true;
     } 
 
@@ -109,11 +108,6 @@ void cerberus::HttpParser::parseHeaders()
         // Remove the leading whitespace if found.
         value = value.find(' ') != std::string::npos ? value.substr(1) : value;
 
-        std::cout << "------------------------" << '\n';
-
-        std::cout << "[" << v[0] << "]" << '\n';
-        std::cout << value << '\n';
-
         // Add to map
         _headers.insert({v[0], value});
 
@@ -124,6 +118,7 @@ void cerberus::HttpParser::parseHeaders()
     if (_headers.contains("Content-Length")) {
         extractMessageBody();
         parseMessageBody();
+        std::cout << "[PARSER] MESSAGE BODY PARSED" << '\n';
     }
 } 
 
@@ -178,7 +173,6 @@ std::ostream& operator<<(std::ostream& out, const cerberus::Request& request)
         out << "--------MESSAGE BODY------" << '\n';
         for (const auto& [key, value] : *request.body) {
             print_key_values(key, value, out);
-            out << "------------------------" << '\n';
         }
     }
 

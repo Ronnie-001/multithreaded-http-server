@@ -32,6 +32,9 @@ cerberus::TcpListener::TcpListener() : _server_running(false)
     _status = getaddrinfo(NULL, MY_PORT, &_hints, &_servinfo);
 }
 
+cerberus::TcpListener::~TcpListener() 
+{}
+
 void cerberus::TcpListener::findServerAddress()
 {
     if (_status != 0) {
@@ -147,15 +150,15 @@ void cerberus::TcpListener::listenForConnections()
                     auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
                     parser->appendData(data);
 
-                    if (parser->isRequestComplete()) {
-                         cerberus::Request req = parser->constructRequest();
-                        
-                        // TODO: Pass request to queue to be processed by different threads.
+                    if (!parser->isRequestComplete()) {
+                        // Transfer ownership to map.
+                        _parsers[fd] = std::move(parser);
+                        continue;
+                    } else {
+                        parseHttpRequest(parser.get());
+                        cerberus::Request req = parser->constructRequest();
+                        std::cout << req << '\n';
                     }
-
-                    // Transfer ownership to map.
-                    _parsers[fd] = std::move(parser);
-                    
                 }
            } else { // This is an existing socket, grab the associated parser through the file descriptor and append.
                 cerberus::HttpParser* parser = _parsers[fd].get();
@@ -163,8 +166,12 @@ void cerberus::TcpListener::listenForConnections()
                 std::string data = readData(fd);
                 parser->appendData(data); 
 
-                // TODO: Pass request to queue to be processetd by different threads.
-                cerberus::Request req = parser->constructRequest();
+                if (parser->isRequestComplete()) {
+                    cerberus::Request req = parser->constructRequest();
+                    std::cout << req;
+                    
+                     // TODO: Pass request to queue to be processed by different threads.
+                }
            }
         }
     } 
@@ -214,7 +221,7 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
     socklen_t request_size = sizeof(ip_address);
 
     inet_ntop(_received_connection.ss_family, getAddressFamily(&_received_connection), ip_address, request_size);
-    std::cout << "[SERVER] IP address: " << ip_address << '\n';
+    // std::cout << "[SERVER] IP address: " << ip_address << '\n';
 
     // buffer to read the data into.
     char buffer[BUFFER_SIZE];
@@ -238,7 +245,7 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
 
         std::cout << "data recieved: " << '\n';
         std::cout << "-------------DATA---------------" << '\n';
-        std::cout << data << '\n';
+        std::cout << data;
         std::cout << "--------------------------------" << '\n';
     }
 
@@ -249,7 +256,7 @@ void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser)
 {
     parser->extractStartLine();
     parser->parseStartLine();
-    
+
     parser->extractHeaders();
     parser->parseHeaders();
 }
