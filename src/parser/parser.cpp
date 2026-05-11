@@ -6,7 +6,7 @@
 
 #include "parser.h"
 #include "request.h"
-#include "simdjson.h"
+#include "simdjson/simdjson.h"
 
 cerberus::HttpParser::HttpParser(int fd, const std::string request) : _complete(false), _conn_fd(fd), _request(request)
 {}

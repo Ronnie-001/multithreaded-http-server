@@ -16,7 +16,7 @@
 #include "tcp.h"
 #include "parser.h"
 
-#define MY_PORT "3490"
+#define MY_PORT "8000"
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
 
