@@ -15,6 +15,7 @@
 
 #include "tcp.h"
 #include "parser.h"
+#include "metrics.h"
 
 #define MY_PORT "8000"
 #define BACKLOG 10
@@ -29,7 +30,7 @@ cerberus::TcpListener::TcpListener() : _server_running(false)
     _hints.ai_flags = AI_PASSIVE;
    
     // Get the server addresses that match the hints.
-    _status = getaddrinfo(NULL, MY_PORT, &_hints, &_servinfo);
+   _status = getaddrinfo(NULL, MY_PORT, &_hints, &_servinfo);
 }
 
 cerberus::TcpListener::~TcpListener() 
