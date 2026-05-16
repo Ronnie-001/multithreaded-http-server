@@ -6,6 +6,7 @@
 
 #include "parser.h"
 #include "request.h"
+#include "strings.h"
 #include "simdjson/simdjson.h"
 
 cerberus::HttpParser::HttpParser(int fd, const std::string request) : _complete(false), _conn_fd(fd), _request(request)
@@ -16,15 +17,15 @@ cerberus::HttpParser::~HttpParser() { close(_conn_fd); }
 bool cerberus::HttpParser::isRequestComplete() 
 {
     // Check if the recieved HTTP request has a message body
-    int header = _request.find("Content-Length");    
+    int header = cerberus::string::caseInsensitiveSearch(_request, "content-length");
     int clrf = _request.find("\r\n\r\n");
         
     // No message body
-    if (header == std::string::npos && clrf != std::string::npos) {
+    if (header == -1 && clrf != std::string::npos) {
         _complete = true;
     } 
 
-    if (header != std::string::npos && clrf != std::string::npos) {
+    if (header != -1 && clrf != std::string::npos) {
         // grab the substring of the request, starting from \r\n\r\n,
         // then compare this to the content length.
 
@@ -34,7 +35,6 @@ bool cerberus::HttpParser::isRequestComplete()
         std::string number_of_bytes_str = from_content_length.substr(16, from_content_length.find("\r\n"));       
 
         int number_of_bytes = std::stoi(number_of_bytes_str);
-
 
         if (number_of_bytes == message_body.length()) {
             _complete = true;
