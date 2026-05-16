@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <cerrno>
+#include <csignal>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -23,9 +24,10 @@
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
 
-
 cerberus::TcpListener::TcpListener() : _server_running(false) 
 {
+    signal(SIGPIPE, SIG_IGN);
+
     // Look for IPv4 or IPv6.
     _hints.ai_family = PF_UNSPEC;
     // Look at server addresses that use TCP.
@@ -165,13 +167,12 @@ void cerberus::TcpListener::listenForConnections()
                 cerberus::string::printRawCharacters(data);
                 std::cout << "-------------[TESTING]----------------" << '\n';
 
-
                 if (parser->isRequestComplete()) {
                     cerberus::Request req = parser->constructRequest();
                     std::cout << req;
 
                     metrics.countRequest();
-                    //sendResponse(fd);
+                    sendResponse(fd);
                     
                     // TODO: Pass request to queue to be processed by different threads.
                 } else {
@@ -220,7 +221,7 @@ int cerberus::TcpListener::setNonBlocking(const int fd)
     return 0;
 }
 
-std::string cerberus::TcpListener::readData(const int _conn_fd)
+std::string cerberus::TcpListener::readData(const int fd)
 {
     // Read in the incoming request data.
     char ip_address[INET6_ADDRSTRLEN];
@@ -234,7 +235,7 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
     std::string data;
 
     int nread;
-    while ((nread = recv(_conn_fd, buffer, BUFFER_SIZE, 0))) {
+    while ((nread = recv(fd, buffer, BUFFER_SIZE, 0))) {
         if (nread == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -244,7 +245,7 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
 
         // Check if the client disconnects.
         if (nread == 0) {
-            _parsers.erase(_conn_fd);
+            _parsers.erase(fd);
             break;
         }
 
@@ -269,11 +270,12 @@ void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser)
     parser->parseHeaders();
 }
 
-void cerberus::TcpListener::sendResponse(const int& _conn_fd) 
+void cerberus::TcpListener::sendResponse(const int& fd) 
 {
     std::string message = "HTTP/1.1 200 OK\r\nContent-Length: 30\r\nConnection: close\r\n\r\n[SERVER] This is the response!";
+    std::string message2 = "HTTP/1.1 200 OK\r\nContent-Length: 30\r\n\r\n[SERVER] This is the response!";
 
-    std::size_t bytes_sent = send(_conn_fd, message.data(), message.size(), 0);
+    std::size_t bytes_sent = send(fd, message2.data(), message2.size(), 0);
 
     if (bytes_sent == -1) {
         std::cerr << "[ERROR] Error sending response back to the client"; 
