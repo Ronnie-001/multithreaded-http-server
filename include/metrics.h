@@ -1,11 +1,7 @@
 #ifndef METRICS_H
 #define METRICS_H
 
-#include "prometheus/core.h"
-#include "prometheus/counter.h"
-#include "prometheus/gauge.h"
-#include "prometheus/histogram.h"
-#include "prometheus/http_puller.h"
+#include "prometheus/prometheus.h"
 
 namespace cerberus
 {
@@ -17,7 +13,7 @@ namespace cerberus
 
             // The metrics that we want to keep track of.
             
-            // Icrement on each parse
+            // Increment on each parse
             prometheus::counter_metric_t _throughput;
             prometheus::histogram_metric_t _latency;
 
@@ -26,13 +22,9 @@ namespace cerberus
 
         public:
             // Init all the metrics and label them through the constructor.
-            Metrics(std::string&& server_address, std::string&& path) : _server(_registry, std::move(server_address), std::move(path)),
-                        _throughput(_registry, "http_requests", "total_requests"),
-                        _latency(_registry, "request_duration", "request_latency", {}, {0.01, 0.05, 0.1, 0.5, 1.0}),
-                        _saturation(_registry, "active_connections", "open_connections")
-            {}
+            Metrics(std::string&& server_address, std::string&& path);
 
-        void countConnection();
+            void countConnection();
     };
 }
 

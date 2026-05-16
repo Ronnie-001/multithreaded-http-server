@@ -5,6 +5,8 @@ project(cerberus)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+include_directories("${CMAKE_SOURCE_DIR}/include")
+
 # Enable compile commands to work with clangd LSP
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

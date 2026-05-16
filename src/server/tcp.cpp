@@ -21,6 +21,7 @@
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
 
+
 cerberus::TcpListener::TcpListener() : _server_running(false) 
 {
     // Look for IPv4 or IPv6.
@@ -103,6 +104,9 @@ void cerberus::TcpListener::listenForConnections()
         std::cerr << "[ERROR] Error registering interest with file descriptor: " << _sock_fd;
         exit(EXIT_FAILURE);
     } 
+    
+    // Create the metics counter
+    cerberus::Metrics metrics("127.0.0.1:8010", "/metrics");
 
     while (_server_running) {
         // Grab the number of READY file descriptors
@@ -111,7 +115,7 @@ void cerberus::TcpListener::listenForConnections()
             std::cerr << "[ERROR] Erorr when waiting for available file descriptors.";
             exit(EXIT_FAILURE);
         }
-        
+
         // Loop through all of the READY file descriptors.
         for (int i = 0; i < nfds; ++i) {
             int fd = _events[i].data.fd;
@@ -138,6 +142,10 @@ void cerberus::TcpListener::listenForConnections()
 
                     std::string data = readData(_conn_fd);
 
+                    std::cout << "-------------[TESTING]----------------" << '\n';
+                    printRawCharacters(data);
+                    std::cout << "-------------[TESTING]----------------" << '\n';
+
                     // Edge triggered.
                     _ev.events = EPOLLIN | EPOLLET;
                     _ev.data.fd = _conn_fd;
@@ -149,15 +157,15 @@ void cerberus::TcpListener::listenForConnections()
                     } 
 
                     auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
-                    parser->appendData(data);
+                    _parsers[_conn_fd] = std::move(parser);
 
-                    if (!parser->isRequestComplete()) {
-                        // Transfer ownership to map.
-                        _parsers[fd] = std::move(parser);
+                    if (!_parsers[_conn_fd]->isRequestComplete()) {
                         continue;
                     } else {
-                        parseHttpRequest(parser.get());
-                        cerberus::Request req = parser->constructRequest();
+                        parseHttpRequest(_parsers[_conn_fd].get());
+                        cerberus::Request req = _parsers[_conn_fd]->constructRequest();
+                        metrics.countConnection();
+
                         std::cout << req << '\n';
                     }
                 }
@@ -248,6 +256,7 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
         std::cout << "-------------DATA---------------" << '\n';
         std::cout << data;
         std::cout << "--------------------------------" << '\n';
+
     }
 
     return data;
@@ -262,3 +271,15 @@ void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser)
     parser->parseHeaders();
 }
 
+void cerberus::TcpListener::printRawCharacters(const std::string& str) 
+{
+    for (char c : str) {
+        switch (c) {
+            case '\n': std::cout << "\\n"; break;
+            case '\t': std::cout << "\\t"; break;
+            case '\r': std::cout << "\\r"; break;
+            case '\\': std::cout << "\\\\"; break;
+            default:   std::cout << c;    break;
+        }
+    }
+}

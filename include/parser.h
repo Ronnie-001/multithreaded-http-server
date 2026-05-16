@@ -5,8 +5,7 @@
 #include <string>
 #include "request.h"
 
-#define BUFFER_SIZE 1024
-
+#define BUFFER 1024
 namespace cerberus 
 {
     // Used for parsing incoming HTTP requests accepter from the TCP listener.
@@ -49,6 +48,7 @@ namespace cerberus
         std::string getMethod() const;
         std::string getResourcePath() const;
         std::string getVersion() const;
+        std::string getRequest() const;
        
         /*
          * Used for appending data from the recv() system call
