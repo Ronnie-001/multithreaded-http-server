@@ -6,7 +6,7 @@ cerberus::Metrics::Metrics(std::string&& server_address, std::string&& path) : _
             _saturation(_registry, "active_connections", "open_connections")
 {}
 
-void cerberus::Metrics::countConnection() 
+void cerberus::Metrics::countRequest() 
 {
     _throughput += 1;
 }

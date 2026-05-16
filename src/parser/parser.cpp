@@ -11,7 +11,7 @@
 cerberus::HttpParser::HttpParser(int fd, const std::string request) : _complete(false), _conn_fd(fd), _request(request)
 {}
 
-cerberus::HttpParser::~HttpParser() { /*Nothing here!!!*/ } 
+cerberus::HttpParser::~HttpParser() { close(_conn_fd); } 
 
 bool cerberus::HttpParser::isRequestComplete() 
 {
@@ -19,10 +19,27 @@ bool cerberus::HttpParser::isRequestComplete()
     int header = _request.find("Content-Length");    
     int clrf = _request.find("\r\n\r\n");
         
-    // No message body, mainly for GET requests
+    // No message body
     if (header == std::string::npos && clrf != std::string::npos) {
         _complete = true;
     } 
+
+    if (header != std::string::npos && clrf != std::string::npos) {
+        // grab the substring of the request, starting from \r\n\r\n,
+        // then compare this to the content length.
+
+        std::string message_body = _request.substr(clrf + 4);
+
+        std::string from_content_length = _request.substr(header);
+        std::string number_of_bytes_str = from_content_length.substr(16, from_content_length.find("\r\n"));       
+
+        int number_of_bytes = std::stoi(number_of_bytes_str);
+
+
+        if (number_of_bytes == message_body.length()) {
+            _complete = true;
+        }
+    }
 
     return _complete;
 }
@@ -157,7 +174,7 @@ std::ostream& operator<<(std::ostream& out, const cerberus::Request& request)
     out << "RESOURCE PATH: " << request.resourcePath << '\n';
     out << "VERSION: " << request.version << '\n';
     
-    // Create a lambda eor printing out the headers
+    // Create a lambda for printing out the headers
     auto print_key_values = [](const auto& key, const auto& value, std::ostream& out) {
         out << "HEADER: " << key << '\n';
         out << "VALUE: " << value << '\n';

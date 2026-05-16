@@ -16,6 +16,7 @@
 #include "tcp.h"
 #include "parser.h"
 #include "metrics.h"
+#include "strings.h"
 
 #define MY_PORT "8000"
 #define BACKLOG 10
@@ -118,10 +119,10 @@ void cerberus::TcpListener::listenForConnections()
 
         // Loop through all of the READY file descriptors.
         for (int i = 0; i < nfds; ++i) {
+
             int fd = _events[i].data.fd;
-            // New socket, use a new HTTP parser object.
-           if (fd == _sock_fd) {
-                // TODO: loop through and accept all connections on this file descriptor.
+
+            if (fd == _sock_fd) { // New socket, use a new HTTP parser object.
                 while (true) {
                     socklen_t connection_size = sizeof(_received_connection);
 
@@ -143,7 +144,7 @@ void cerberus::TcpListener::listenForConnections()
                     std::string data = readData(_conn_fd);
 
                     std::cout << "-------------[TESTING]----------------" << '\n';
-                    printRawCharacters(data);
+                    cerberus::string::printRawCharacters(data);
                     std::cout << "-------------[TESTING]----------------" << '\n';
 
                     // Edge triggered.
@@ -164,12 +165,14 @@ void cerberus::TcpListener::listenForConnections()
                     } else {
                         parseHttpRequest(_parsers[_conn_fd].get());
                         cerberus::Request req = _parsers[_conn_fd]->constructRequest();
-                        metrics.countConnection();
+
+                        // ONLY count when the request is complete.
+                        metrics.countRequest();
 
                         std::cout << req << '\n';
                     }
                 }
-           } else { // This is an existing socket, grab the associated parser through the file descriptor and append.
+            } else { // This is an existing socket, grab the associated parser through the file descriptor and append data.
                 cerberus::HttpParser* parser = _parsers[fd].get();
 
                 std::string data = readData(fd);
@@ -178,10 +181,12 @@ void cerberus::TcpListener::listenForConnections()
                 if (parser->isRequestComplete()) {
                     cerberus::Request req = parser->constructRequest();
                     std::cout << req;
+
+                    metrics.countRequest();
                     
                     // TODO: Pass request to queue to be processed by different threads.
                 }
-           }
+            }
         }
     } 
 
@@ -209,6 +214,7 @@ void cerberus::TcpListener::createEpollInstance()
 
 int cerberus::TcpListener::setNonBlocking(const int fd) 
 {
+
     int flags = fcntl(fd, F_GETFL, 0); 
     if (flags == -1) {
         std::cerr << "[ERROR] Error getting the file access mode and status flags.";
@@ -247,6 +253,7 @@ std::string cerberus::TcpListener::readData(const int _conn_fd)
 
         // Check if the client disconnects.
         if (nread == 0) {
+            _parsers.erase(_conn_fd);
             break;
         }
 
@@ -269,17 +276,4 @@ void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser)
 
     parser->extractHeaders();
     parser->parseHeaders();
-}
-
-void cerberus::TcpListener::printRawCharacters(const std::string& str) 
-{
-    for (char c : str) {
-        switch (c) {
-            case '\n': std::cout << "\\n"; break;
-            case '\t': std::cout << "\\t"; break;
-            case '\r': std::cout << "\\r"; break;
-            case '\\': std::cout << "\\\\"; break;
-            default:   std::cout << c;    break;
-        }
-    }
 }

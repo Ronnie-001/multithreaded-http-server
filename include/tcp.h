@@ -79,9 +79,6 @@ namespace cerberus
             void parseHttpRequest(cerberus::HttpParser* parser);
 
             void sendResponse();
-
-            void printRawCharacters(const std::string& str);
-
     };
 }
 
