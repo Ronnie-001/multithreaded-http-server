@@ -1,15 +1,17 @@
 #include <ostream>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <vector>
+#include "m_strings.h"
 
 #include "parser.h"
 #include "request.h"
-#include "strings.h"
 #include "simdjson/simdjson.h"
 
 cerberus::HttpParser::HttpParser(int fd, const std::string request) : _complete(false), _conn_fd(fd), _request(request)
+{}
+
+cerberus::HttpParser::HttpParser(int fd) : _complete(false), _conn_fd(fd)
 {}
 
 cerberus::HttpParser::~HttpParser() { close(_conn_fd); } 
@@ -18,18 +20,18 @@ bool cerberus::HttpParser::isRequestComplete()
 {
     // Check if the recieved HTTP request has a message body
     int header = cerberus::string::caseInsensitiveSearch(_request, "content-length");
-    int clrf = _request.find("\r\n\r\n");
+    int crlf = _request.find("\r\n\r\n");
         
     // No message body
-    if (header == -1 && clrf != std::string::npos) {
+    if (header == -1 && crlf != std::string::npos) {
         _complete = true;
     } 
 
-    if (header != -1 && clrf != std::string::npos) {
+    if (header != -1 && crlf != std::string::npos) {
         // grab the substring of the request, starting from \r\n\r\n,
         // then compare this to the content length.
 
-        std::string message_body = _request.substr(clrf + 4);
+        std::string message_body = _request.substr(crlf + 4);
 
         std::string from_content_length = _request.substr(header);
         std::string number_of_bytes_str = from_content_length.substr(16, from_content_length.find("\r\n"));       
@@ -62,8 +64,8 @@ void cerberus::HttpParser::appendData(const std::string data)
 void cerberus::HttpParser:: extractStartLine()
 {
     // Look for first instance of CRLF
-    std::string::size_type first_clrf = _request.find("\r\n");
-    std::string start_line = _request.substr(0, first_clrf);  
+    std::string::size_type first_crlf = _request.find("\r\n");
+    std::string start_line = _request.substr(0, first_crlf);  
     
     _extracted_start_line = start_line;
 }
@@ -99,7 +101,7 @@ void cerberus::HttpParser::parseHeaders()
     std::size_t parse_start = 0;
     std::size_t parse_end = _extracted_headers.find("\r\n");
     
-    // Iterate through manually until no CLRF
+    // Iterate through manually until no crlf
     while (parse_end != std::string::npos) {
         std::string header = _extracted_headers.substr(parse_start, parse_end - parse_start);  
 

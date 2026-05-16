@@ -37,6 +37,7 @@ namespace cerberus
     public:
         // Constructor(s)
         HttpParser();
+        HttpParser(int fd);
         HttpParser(int fd, const std::string request);
 
         HttpParser(const HttpParser& parser);

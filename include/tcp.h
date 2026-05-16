@@ -78,7 +78,7 @@ namespace cerberus
             // Used to parse and extract the start line, and HTTP headers, and potential message body.
             void parseHttpRequest(cerberus::HttpParser* parser);
 
-            void sendResponse();
+            void sendResponse(const int& _conn_fd);
     };
 }
 

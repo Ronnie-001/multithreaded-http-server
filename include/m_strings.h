@@ -1,5 +1,5 @@
-#ifndef STRINGS_H
-#define STRINGS_H
+#ifndef M_STRINGS_H
+#define M_STRINGS_H
 
 #include <string>
 
@@ -13,6 +13,5 @@ namespace cerberus
     }
 }
 
-
-#endif // !STRINGS_H
-#define STRINGS_H
+#endif // !M_STRINGS_H
+#define M_STRINGS_H

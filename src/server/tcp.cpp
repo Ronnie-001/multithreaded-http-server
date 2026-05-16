@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <cerrno>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <immintrin.h>
@@ -16,7 +17,7 @@
 #include "tcp.h"
 #include "parser.h"
 #include "metrics.h"
-#include "strings.h"
+#include "m_strings.h"
 
 #define MY_PORT "8000"
 #define BACKLOG 10
@@ -141,12 +142,6 @@ void cerberus::TcpListener::listenForConnections()
                         exit(EXIT_FAILURE);
                     }
 
-                    std::string data = readData(_conn_fd);
-
-                    std::cout << "-------------[TESTING]----------------" << '\n';
-                    cerberus::string::printRawCharacters(data);
-                    std::cout << "-------------[TESTING]----------------" << '\n';
-
                     // Edge triggered.
                     _ev.events = EPOLLIN | EPOLLET;
                     _ev.data.fd = _conn_fd;
@@ -157,20 +152,8 @@ void cerberus::TcpListener::listenForConnections()
                         exit(EXIT_FAILURE);
                     } 
 
-                    auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd, data);
+                    auto parser = std::make_unique<cerberus::HttpParser>(_conn_fd);
                     _parsers[_conn_fd] = std::move(parser);
-
-                    if (!_parsers[_conn_fd]->isRequestComplete()) {
-                        continue;
-                    } else {
-                        parseHttpRequest(_parsers[_conn_fd].get());
-                        cerberus::Request req = _parsers[_conn_fd]->constructRequest();
-
-                        // ONLY count when the request is complete.
-                        metrics.countRequest();
-
-                        std::cout << req << '\n';
-                    }
                 }
             } else { // This is an existing socket, grab the associated parser through the file descriptor and append data.
                 cerberus::HttpParser* parser = _parsers[fd].get();
@@ -178,13 +161,21 @@ void cerberus::TcpListener::listenForConnections()
                 std::string data = readData(fd);
                 parser->appendData(data); 
 
+                std::cout << "-------------[TESTING]----------------" << '\n';
+                cerberus::string::printRawCharacters(data);
+                std::cout << "-------------[TESTING]----------------" << '\n';
+
+
                 if (parser->isRequestComplete()) {
                     cerberus::Request req = parser->constructRequest();
                     std::cout << req;
 
                     metrics.countRequest();
+                    //sendResponse(fd);
                     
                     // TODO: Pass request to queue to be processed by different threads.
+                } else {
+                    continue;
                 }
             }
         }
@@ -276,4 +267,16 @@ void cerberus::TcpListener::parseHttpRequest(cerberus::HttpParser* parser)
 
     parser->extractHeaders();
     parser->parseHeaders();
+}
+
+void cerberus::TcpListener::sendResponse(const int& _conn_fd) 
+{
+    std::string message = "HTTP/1.1 200 OK\r\nContent-Length: 30\r\nConnection: close\r\n\r\n[SERVER] This is the response!";
+
+    std::size_t bytes_sent = send(_conn_fd, message.data(), message.size(), 0);
+
+    if (bytes_sent == -1) {
+        std::cerr << "[ERROR] Error sending response back to the client"; 
+        exit(EXIT_FAILURE);
+    }
 }
